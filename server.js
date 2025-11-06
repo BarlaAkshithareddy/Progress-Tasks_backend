@@ -32,12 +32,24 @@ const BUCKET_NAME = process.env.BUCKET_NAME;
 // Upload endpoint
 app.post('/upload', upload.single('file'), async (req, res) => {
     try {
+        console.log('Upload request received');
+        console.log('Environment check:', {
+            hasAccessKey: !!process.env.AWS_ACCESS_KEY_ID,
+            hasSecretKey: !!process.env.AWS_SECRET_ACCESS_KEY,
+            bucketName: process.env.BUCKET_NAME,
+            region: process.env.REGION_NAME
+        });
+
         if (!req.file) {
             return res.status(400).json({ error: 'No file provided' });
         }
 
         if (!BUCKET_NAME) {
             return res.status(500).json({ error: 'Bucket name not configured' });
+        }
+
+        if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+            return res.status(500).json({ error: 'AWS credentials not configured' });
         }
 
         const putCommand = new PutObjectCommand({
@@ -77,4 +89,10 @@ app.get('/health', (req, res) => {
 
 app.listen(port, '0.0.0.0', () => {
     console.log(`Server running on port ${port}`);
+    console.log('Environment variables loaded:', {
+        hasAccessKey: !!process.env.AWS_ACCESS_KEY_ID,
+        hasSecretKey: !!process.env.AWS_SECRET_ACCESS_KEY,
+        bucketName: process.env.BUCKET_NAME,
+        region: process.env.REGION_NAME
+    });
 });
