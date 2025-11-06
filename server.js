@@ -7,7 +7,7 @@ const { GetObjectCommand } = require('@aws-sdk/client-s3');
 require('dotenv').config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
@@ -22,7 +22,9 @@ const s3Client = new S3Client({
         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
     },
-    region: process.env.REGION_NAME || 'us-east-1'
+    region: process.env.REGION_NAME || 'us-east-1',
+    forcePathStyle: false,
+    useAccelerateEndpoint: false
 });
 
 const BUCKET_NAME = process.env.BUCKET_NAME;
