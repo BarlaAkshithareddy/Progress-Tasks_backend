@@ -1,7 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
-const AWS = require('aws-sdk');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const { GetObjectCommand } = require('@aws-sdk/client-s3');
 require('dotenv').config();
 
 const app = express();
@@ -14,10 +16,12 @@ app.use(express.json());
 // Configure multer for file uploads
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Configure AWS S3
-const s3 = new AWS.S3({
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+// Configure AWS S3 v3
+const s3Client = new S3Client({
+    credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+    },
     region: process.env.REGION_NAME || 'us-east-1'
 });
 
@@ -30,22 +34,27 @@ app.post('/upload', upload.single('file'), async (req, res) => {
             return res.status(400).json({ error: 'No file provided' });
         }
 
-        const params = {
+        if (!BUCKET_NAME) {
+            return res.status(500).json({ error: 'Bucket name not configured' });
+        }
+
+        const putCommand = new PutObjectCommand({
             Bucket: BUCKET_NAME,
             Key: req.file.originalname,
             Body: req.file.buffer,
             ContentType: req.file.mimetype
-        };
+        });
 
         // Upload to S3
-        await s3.upload(params).promise();
+        await s3Client.send(putCommand);
 
         // Generate presigned URL (valid for 1 hour)
-        const fileUrl = s3.getSignedUrl('getObject', {
+        const getCommand = new GetObjectCommand({
             Bucket: BUCKET_NAME,
-            Key: req.file.originalname,
-            Expires: 3600
+            Key: req.file.originalname
         });
+        
+        const fileUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: 3600 });
 
         res.json({
             success: true,
